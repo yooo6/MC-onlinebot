@@ -1,62 +1,105 @@
 const express = require('express');
 const mineflayer = require('mineflayer');
 const { AutoAuth } = require('mineflayer-auto-auth');
-const config = require('./falix.config.json');
+const config = require('./config.json');
 const app = express();
 
-let moveInterval;  // 🔥 新增：定时器句柄，用于清理
+let moveInterval;
+let botStatus = 'disconnected';
+let lastError = null;
 
 function startBot() {
   const bot = mineflayer.createBot({
     host: config.serverIP,
     port: config.serverPort,
     username: config.botUsername,
+    version: '1.21.8',
+    auth: 'offline',
     plugins: [AutoAuth],
-    AutoAuth: 'bot112022'
+    AutoAuth: {
+      logging: true,
+      password: 'bot112022',
+      ignoreRepeat: true
+    }
   });
 
   bot.on('error', (err) => {
     console.log('Bot encountered an error:', err);
-    clearInterval(moveInterval);  // 🔥 清理定时器
+    lastError = err.message;
+    botStatus = 'error';
+    clearInterval(moveInterval);
   });
 
   bot.on('end', () => {
     console.log('Bot disconnected from the server');
-    clearInterval(moveInterval);  // 🔥 清理定时器
-    setTimeout(startBot, 5000);   // 🔥 自动重连（5秒后）
+    botStatus = 'disconnected';
+    clearInterval(moveInterval);
+    setTimeout(startBot, 5000);
   });
 
   bot.on('spawn', () => {
     console.log('Bot has spawned successfully.');
+    botStatus = 'connected';
+    lastError = null;
     bot.chat('Connected Sucessfully!');
 
-    // 🔥 新增：简单跳跃移动功能（每 20-40 秒随机跳 + 前进，防 AFK）
     moveInterval = setInterval(() => {
-      // 随机方向：forward 或 back
       const direction = Math.random() > 0.5 ? 'forward' : 'back';
-      bot.setControlState(direction, true);  // 前进/后退
-      bot.setControlState('jump', true);     // 跳跃
+      bot.setControlState(direction, true);
+      bot.setControlState('jump', true);
 
       console.log(`🦘 Bot 跳跃移动：${direction.toUpperCase()}!`);
 
-      // 持续 500ms 后停止（模拟自然动作）
       setTimeout(() => {
         bot.setControlState(direction, false);
         bot.setControlState('jump', false);
       }, 500);
-    }, 20000 + Math.random() * 20000);  // 随机间隔 20-40 秒
-
-    startLiveApp();
+    }, 20000 + Math.random() * 20000);
   });
 }
 
-function startLiveApp() {
-  app.get('/', (req, res) => {
-    res.send('Minecraft Connected!');
-  });
-  app.listen(3000, () => {
-    console.log(`Website is Running on http://localhost:3000`);
-  });
-}
+app.get('/', (req, res) => {
+  res.send(`
+    <html>
+      <head>
+        <title>Minecraft Bot Status</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+          .status { padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .connected { background-color: #d4edda; color: #155724; }
+          .disconnected { background-color: #fff3cd; color: #856404; }
+          .error { background-color: #f8d7da; color: #721c24; }
+          h1 { color: #333; }
+          .info { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        </style>
+      </head>
+      <body>
+        <h1>Minecraft AFK Bot</h1>
+        <div class="status ${botStatus}">
+          <h2>Status: ${botStatus.toUpperCase()}</h2>
+          ${lastError ? `<p>Last Error: ${lastError}</p>` : ''}
+        </div>
+        <div class="info">
+          <h3>Configuration</h3>
+          <p><strong>Server:</strong> ${config.serverIP}:${config.serverPort}</p>
+          <p><strong>Username:</strong> ${config.botUsername}</p>
+        </div>
+        <div class="info">
+          <h3>Instructions</h3>
+          <p>Update the <code>config.json</code> file with your Minecraft server details:</p>
+          <ul>
+            <li><strong>serverIP:</strong> Your Minecraft server address</li>
+            <li><strong>serverPort:</strong> Your Minecraft server port (default: 25565)</li>
+            <li><strong>botUsername:</strong> Your Minecraft account username</li>
+          </ul>
+        </div>
+      </body>
+    </html>
+  `);
+});
+
+app.listen(5000, '0.0.0.0', () => {
+  console.log(`Website is Running on http://0.0.0.0:5000`);
+});
 
 startBot();
