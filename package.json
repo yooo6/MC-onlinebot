@@ -1,0 +1,16 @@
+{
+"name": "mc-onlinebot",
+"version": "1.0.0",
+"description": "Minecraft AFK Bot for FalixNodes with Express server",
+"main": "app.js",
+"scripts": {
+"start": "node app.js"
+},
+"dependencies": {
+"express": "^4.18.2",
+"mineflayer": "^4.20.1",
+"mineflayer-auto-auth": "^1.0.0"
+},
+"author": "yooo6",
+"license": "MIT"
+}
